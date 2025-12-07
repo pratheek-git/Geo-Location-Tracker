@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geolocation of anyone</title>
+</head>
+<body>
+    <h2>Geolocation Surprise</h2>
+    <p>Press the button</p>
+    <button id="openConsent">Show me a surprise</button>
+
+    <div id="demo" aria-live="polite"></div>
+
+    <!-- Consent modal -->
+    <div id="consentModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="modal-content">
+            <h3>Allow a fun surprise?</h3>
+            <p></p>
+            <div class="modal-actions">
+                <button id="consentYes" class="primary">Yes — show surprise</button>
+                <button id="consentNo" class="secondary">No — maybe later</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Playful overlay shown after permission is granted -->
+    <div id="overlay" class="overlay" aria-hidden="true">
+        <div class="card">
+            <button id="closeOverlay" class="close">✕</button>
+            <div id="confetti" class="confetti" aria-hidden="true"></div>
+            <h2 id="overlayTitle">Surprise!</h2>
+            <p id="overlayMessage"></p>
+            <div class="overlay-actions">
+                <button id="copyCoords">Copy coordinates</button>
+                <button id="dismiss">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial; padding: 24px; background: #f6f8fb; color:#1f2937 }
+        button { padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer }
+        #openConsent { background: linear-gradient(90deg,#6366f1,#8b5cf6); color: #fff }
+        #demo { margin-top: 12px; color:#374151 }
+
+        .modal { position: fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.4); visibility:hidden; opacity:0; transition:opacity .18s }
+        .modal[aria-hidden="false"]{ visibility:visible; opacity:1 }
+        .modal-content{ background:#fff; padding:20px; border-radius:12px; width:320px; box-shadow:0 8px 30px rgba(2,6,23,0.2) }
+        .modal-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:12px }
+        .primary{ background:#10b981; color:#fff }
+        .secondary{ background:#e5e7eb }
+
+        .overlay{ position: fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(7,11,20,0.6); visibility:hidden; opacity:0; transition:opacity .2s }
+        .overlay[aria-hidden="false"]{ visibility:visible; opacity:1 }
+        .card{ background: linear-gradient(180deg,#ffffff 0%, #f8fafc 100%); padding:18px 20px; border-radius:14px; width:360px; text-align:center; position:relative; box-shadow: 0 12px 40px rgba(2,6,23,0.35) }
+        .card .close{ position:absolute; right:10px; top:10px; background:transparent; font-size:16px }
+        .confetti{ height:80px; margin-bottom:6px }
+
+        /* Simple confetti dots animation */
+        @keyframes pop { 0% { transform: translateY(0) scale(0.6); opacity:0 } 40% { opacity:1; transform: translateY(-10px) scale(1) } 100% { transform: translateY(-200px) rotate(45deg); opacity:0 } }
+        .confetti::before, .confetti::after, .confetti div { content:''; display:inline-block; width:10px; height:10px; border-radius:2px; margin:4px }
+        .confetti::before { background:#f97316; animation: pop 1000ms ease forwards }
+        .confetti::after { background:#f43f5e; animation: pop 1100ms ease .05s forwards }
+        .confetti div { background:#10b981; animation: pop 1200ms ease .1s forwards }
+
+        .overlay-actions{ display:flex; gap:8px; justify-content:center; margin-top:12px }
+    </style>
+
+    <script>
+        const demo = document.getElementById('demo');
+        const openBtn = document.getElementById('openConsent');
+        const modal = document.getElementById('consentModal');
+        const consentYes = document.getElementById('consentYes');
+        const consentNo = document.getElementById('consentNo');
+        const overlay = document.getElementById('overlay');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlayMessage = document.getElementById('overlayMessage');
+        const closeOverlay = document.getElementById('closeOverlay');
+        const copyCoords = document.getElementById('copyCoords');
+        const dismiss = document.getElementById('dismiss');
+
+        openBtn.addEventListener('click', () => {
+            showModal(true);
+        });
+        consentNo.addEventListener('click', () => showModal(false));
+
+        consentYes.addEventListener('click', () => {
+            showModal(false);
+            requestLocation(true);
+        });
+
+        function showModal(show){
+            modal.setAttribute('aria-hidden', String(!show));
+        }
+
+        function showOverlay(show){
+            overlay.setAttribute('aria-hidden', String(!show));
+            // populate confetti container with 3 dots to animate
+            const confetti = document.getElementById('confetti');
+            if(show){
+                confetti.innerHTML = '<div></div>';
+            } else {
+                confetti.innerHTML = '';
+            }
+        }
+
+        function requestLocation(userInitiated){
+            demo.textContent = '';
+            if (!navigator.geolocation) {
+                demo.textContent = 'Geolocation is not supported by this browser.';
+                return;
+            }
+
+            // Secure context check (browsers require HTTPS or localhost)
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                demo.textContent = 'Note: Geolocation generally requires HTTPS or localhost. Run via http://localhost for testing.';
+                // We still attempt to request — user will see browser behavior.
+            }
+
+            navigator.geolocation.getCurrentPosition(positionSuccess, positionFailure, { enableHighAccuracy: true, timeout: 10000 });
+        }
+
+        function positionSuccess(position){
+            const lat = position.coords.latitude.toFixed(5);
+            const lon = position.coords.longitude.toFixed(5);
+            // Playful mapping of location to a fake 'prize' (consent was given)
+            const prizes = ['a giant cookie', 'a secret taco stand', 'an invisible unicorn', 'a tiny pirate ship', 'free coffee for life (jk)'];
+            const idx = Math.abs(Math.floor((lat + lon) * 100)) % prizes.length;
+            const prize = prizes[idx];
+
+            overlayTitle.textContent = 'You found a surprise!';
+            overlayMessage.innerHTML = `Latitude: <strong>${lat}</strong><br>Longitude: <strong>${lon}</strong><br><em>Nearby surprise:</em> ${prize}`;
+            showOverlay(true);
+
+            // wire up copy action
+            copyCoords.onclick = async () => {
+                try {
+                    await navigator.clipboard.writeText(`${lat}, ${lon}`);
+                    copyCoords.textContent = 'Copied!';
+                    setTimeout(()=> copyCoords.textContent = 'Copy coordinates', 1500);
+                } catch (e) {
+                    copyCoords.textContent = 'Copy failed';
+                }
+            };
+
+            dismiss.onclick = () => showOverlay(false);
+            closeOverlay.onclick = () => showOverlay(false);
+        }
+
+        function positionFailure(error){
+            if (error && error.code === 1) {
+                demo.textContent = 'Permission denied. If you change your mind, try again ';
+            } else if (error && error.code === 2) {
+                demo.textContent = 'Position unavailable. Try again or check device settings.';
+            } else if (error && error.code === 3) {
+                demo.textContent = 'Timeout obtaining location. Try again.';
+            } else {
+                demo.textContent = 'Failed to get location: ' + (error && error.message ? error.message : 'unknown error');
+            }
+        }
+
+        // Accessibility: close modal with Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                showModal(false);
+                showOverlay(false);
+            }
+        });
+    </script>
+</body>
+</html>
